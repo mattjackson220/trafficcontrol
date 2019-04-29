@@ -19,30 +19,38 @@
 
 var DeliveryServiceSslKeysService = function($http, $q, locationUtils, messageModel, ENV) {
 	this.generateSslKeys = function(deliveryService, sslKeys, generateSslKeyForm) {
-		if (sslKeys.hasOwnProperty('version')){
-			generateSslKeyForm.version = parseInt(sslKeys.version) + 1;
-		} else {
-			generateSslKeyForm.version = 1;
-		}
-
-		generateSslKeyForm.cdn = deliveryService.cdnName;
-		generateSslKeyForm.deliveryservice = deliveryService.xmlId;
-		generateSslKeyForm.key = deliveryService.xmlId;
-
-		var request = $q.defer();
-        $http.post(ENV.api['root'] + "deliveryservices/sslkeys/generate", generateSslKeyForm)
-        .then(
-            function(result) {
-            	messageModel.setMessages([ { level: 'success', text: 'SSL Keys generated and updated for ' + deliveryService.xmlId } ], true);
-                request.resolve(result.data.response);
-            },
-            function(fault) {
-            	messageModel.setMessages(fault.data.alerts, false);
-                request.reject(fault);
-            }
-        );
-        return request.promise;
+		 return this.generateSslKeysBase(deliveryService, sslKeys, generateSslKeyForm, "deliveryservices/sslkeys/generate");
 	};
+
+    this.generateSslKeysWithLetsEncrypt = function(deliveryService, sslKeys, generateSslKeyForm) {
+        return this.generateSslKeysBase(deliveryService, sslKeys, generateSslKeyForm, "deliveryservices/sslkeys/generate/letsencrypt");
+    };
+
+	this.generateSslKeysBase = function(deliveryService, sslKeys, generateSslKeyForm, endpoint) {
+        if (sslKeys.hasOwnProperty('version')){
+            generateSslKeyForm.version = parseInt(sslKeys.version) + 1;
+        } else {
+            generateSslKeyForm.version = 1;
+        }
+
+        generateSslKeyForm.cdn = deliveryService.cdnName;
+        generateSslKeyForm.deliveryservice = deliveryService.xmlId;
+        generateSslKeyForm.key = deliveryService.xmlId;
+
+        var request = $q.defer();
+        $http.post(ENV.api['root'] + endpoint, generateSslKeyForm)
+            .then(
+                function(result) {
+                    messageModel.setMessages([ { level: 'success', text: 'SSL Keys generated and updated for ' + deliveryService.xmlId } ], true);
+                    request.resolve(result.data.response);
+                },
+                function(fault) {
+                    messageModel.setMessages(fault.data.alerts, false);
+                    request.reject(fault);
+                }
+            );
+        return request.promise;
+    };
 
 	this.addSslKeys = function(sslKeys, deliveryService) {
 		var request = $q.defer();
