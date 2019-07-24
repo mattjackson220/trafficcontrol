@@ -41,6 +41,7 @@ type Config struct {
 	KeyPath                string   `json:"-"`
 	ConfigHypnotoad        `json:"hypnotoad"`
 	ConfigTrafficOpsGolang `json:"traffic_ops_golang"`
+	ConfigLetsEncrypt      `json:"lets_encrypt"`
 	DB                     ConfigDatabase `json:"db"`
 	Secrets                []string       `json:"secrets"`
 	// NOTE: don't care about any other fields for now..
@@ -96,6 +97,10 @@ type ConfigTrafficOpsGolang struct {
 	// CRConfigEmulateOldPath is whether to emulate the legacy CRConfig request path when generating a new CRConfig. This primarily exists in the event a tool relies on the legacy path '/tools/write_crconfig'.
 	// Deprecated: will be removed in the next major version.
 	CRConfigEmulateOldPath bool `json:"crconfig_emulate_old_path"`
+}
+
+type ConfigLetsEncrypt struct {
+	Email string `json:"user_email,omitempty"`
 }
 
 // ConfigDatabase reflects the structure of the database.conf file
