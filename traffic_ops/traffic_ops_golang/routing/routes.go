@@ -421,6 +421,7 @@ func Routes(d ServerData) ([]Route, []RawRoute, http.Handler, error) {
 		{1.4, http.MethodPost, `deliveryservices/sslkeys/generate/letsencrypt/?(\.json)?$`, deliveryservice.GenerateLetsEncryptCertificates, auth.PrivLevelReadOnly, Authenticated, nil},
 		{1.4, http.MethodGet, `letsencrypt/dnsrecord/?(\.json)?$`, deliveryservice.GetDnsChallengeRecord, auth.PrivLevelReadOnly, Authenticated, nil},
 		{1.4, http.MethodGet, `letsencrypt/dnsrecords/?(\.json)?$`, deliveryservice.GetAllDnsChallengeRecords, auth.PrivLevelReadOnly, Authenticated, nil},
+		{1.4, http.MethodGet, `letsencrypt/autorenew/?(\.json)?$`, deliveryservice.RenewCertificates, auth.PrivLevelReadOnly, Authenticated, nil},
 
 		{1.1, http.MethodPost, `deliveryservices/xmlId/{name}/urlkeys/copyFromXmlId/{copy-name}/?(\.json)?$`, deliveryservice.CopyURLKeys, auth.PrivLevelOperations, Authenticated, nil},
 		{1.1, http.MethodPost, `deliveryservices/xmlId/{name}/urlkeys/generate/?(\.json)?$`, deliveryservice.GenerateURLKeys, auth.PrivLevelOperations, Authenticated, nil},
