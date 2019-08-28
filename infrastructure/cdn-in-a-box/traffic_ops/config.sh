@@ -120,7 +120,21 @@ cat <<-EOF >/opt/traffic_ops/app/conf/cdn.conf
     "geniso" : {
         "iso_root_path" : "/opt/traffic_ops/app/public"
     },
-    "inactivity_timeout" : 60
+    "inactivity_timeout" : 60,
+    "lets_encrypt" : {
+        "user_email" : "",
+        "send_expiration_email": true,
+        "convert_self_signed": true,
+        "renew_days_before_expiration": 500
+    },
+    "smtp" : {
+        "enabled" : true,
+        "to_email" : [""],
+        "from_email" : "",
+        "user" : "",
+        "password" : "",
+        "address" : ""
+    }
 }
 EOF
 
