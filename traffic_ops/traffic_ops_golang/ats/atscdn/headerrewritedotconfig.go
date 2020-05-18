@@ -116,18 +116,16 @@ SELECT
   ds.id,
   tp.name as type,
   ds.max_origin_connections,
-  sc.name as service_category_name,
   COALESCE(ds.edge_header_rewrite, ''),
   COALESCE(ds.mid_header_rewrite, '')
 FROM
   deliveryservice ds
   JOIN type tp on tp.id = ds.type
-  JOIN service_category sc ON sc.id = ds.service_category
 WHERE
   ds.xml_id = $1
 `
 	ds := atscfg.HeaderRewriteDS{}
-	if err := tx.QueryRow(qry, xmlId).Scan(&ds.ID, &ds.Type, &ds.MaxOriginConnections, &ds.ServiceCategoryName, &ds.EdgeHeaderRewrite, &ds.MidHeaderRewrite); err != nil {
+	if err := tx.QueryRow(qry, xmlId).Scan(&ds.ID, &ds.Type, &ds.MaxOriginConnections, &ds.EdgeHeaderRewrite, &ds.MidHeaderRewrite); err != nil {
 		return atscfg.HeaderRewriteDS{}, errors.New("scanning: " + err.Error())
 	}
 	return ds, nil
