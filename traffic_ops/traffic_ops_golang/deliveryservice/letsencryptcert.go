@@ -228,7 +228,7 @@ func GetLetsEncryptCertificates(cfg *config.Config, req tc.DeliveryServiceLetsEn
 	}
 	tx.Commit()
 
-	storedLEInfo, err := getStoredLetsEncryptInfo(userTx, cfg.ConfigLetsEncrypt.Email)
+	storedLEInfo, err := getStoredAcmeInfo(userTx, cfg.ConfigLetsEncrypt.Email)
 	if err != nil {
 		log.Errorf(deliveryService+": Error finding stored LE information: %s", err.Error())
 		api.CreateChangeLogRawTx(api.ApiChange, "DS: "+*req.DeliveryService+", ID: "+strconv.Itoa(dsID)+", ACTION: FAILED to add SSL keys with Lets Encrypt", currentUser, logTx)
@@ -392,7 +392,7 @@ func GetLetsEncryptCertificates(cfg *config.Config, req tc.DeliveryServiceLetsEn
 		return errors.New("pem-encoding private key: " + err.Error())
 	}
 	userKeyPem := userKeyBuf.Bytes()
-	err = storeLEAccountInfo(userTx, myUser.Email, string(userKeyPem), myUser.Registration.URI)
+	err = storeAcmeAccountInfo(userTx, myUser.Email, string(userKeyPem), myUser.Registration.URI)
 	if err != nil {
 		log.Errorf("storing user account info: " + err.Error())
 		api.CreateChangeLogRawTx(api.ApiChange, "DS: "+*req.DeliveryService+", ID: "+strconv.Itoa(dsID)+", ACTION: FAILED to add SSL keys with Lets Encrypt", currentUser, logTx)
@@ -404,7 +404,7 @@ func GetLetsEncryptCertificates(cfg *config.Config, req tc.DeliveryServiceLetsEn
 	return nil
 }
 
-func getStoredLetsEncryptInfo(tx *sql.Tx, email string) (*LEInfo, error) {
+func getStoredAcmeInfo(tx *sql.Tx, email string) (*LEInfo, error) {
 	leInfo := LEInfo{}
 	selectQuery := `SELECT email, private_key, uri FROM lets_encrypt_account WHERE email = $1 LIMIT 1`
 	if err := tx.QueryRow(selectQuery, email).Scan(&leInfo.Email, &leInfo.Key, &leInfo.URI); err != nil {
@@ -424,7 +424,7 @@ func getStoredLetsEncryptInfo(tx *sql.Tx, email string) (*LEInfo, error) {
 	return &leInfo, nil
 }
 
-func storeLEAccountInfo(tx *sql.Tx, email string, privateKey string, uri string) error {
+func storeAcmeAccountInfo(tx *sql.Tx, email string, privateKey string, uri string) error {
 	q := `INSERT INTO lets_encrypt_account (email, private_key, uri) VALUES ($1, $2, $3)`
 	response, err := tx.Exec(q, email, privateKey, uri)
 	if err != nil {
