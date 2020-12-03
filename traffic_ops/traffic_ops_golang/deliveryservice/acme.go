@@ -27,6 +27,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"github.com/apache/trafficcontrol/lib/go-log"
 	"github.com/apache/trafficcontrol/lib/go-tc"
 	"github.com/apache/trafficcontrol/traffic_ops/traffic_ops_golang/api"
@@ -123,7 +124,7 @@ func renewAcmeCerts(cfg *config.Config, dsName string, ctx context.Context, curr
 
 	acmeAccount := getAcmeAccountConfig(cfg, keyObj.AuthType)
 	if acmeAccount == nil {
-		return errors.New("No acme account informatoin in cdn.conf for " + keyObj.AuthType)
+		return errors.New("No acme account information in cdn.conf for " + keyObj.AuthType)
 	}
 
 	storedAcmeInfo, err := getStoredAcmeInfo(userTx, acmeAccount.UserEmail)
@@ -229,6 +230,11 @@ func renewAcmeCerts(cfg *config.Config, dsName string, ctx context.Context, curr
 		return err
 	}
 
+	if validErr := ValidateCert([]byte(keyObj.Certificate.Crt), cert.Certificate); validErr != nil {
+		log.Errorf("Certificate for ds %s failed validation: %s", dsName, validErr.Error())
+		return errors.New(fmt.Sprintf("Certificate for ds %s failed validation: %s", dsName, validErr.Error()))
+	}
+
 	newCertObj := tc.DeliveryServiceSSLKeys{
 		AuthType:        keyObj.AuthType,
 		CDN:             keyObj.CDN,
@@ -238,7 +244,7 @@ func renewAcmeCerts(cfg *config.Config, dsName string, ctx context.Context, curr
 		Version:         keyObj.Version + 1,
 	}
 
-	newCertObj.Certificate = tc.DeliveryServiceSSLKeysCertificate{Crt: string(EncodePEMToLegacyPerlRiakFormat(cert.Certificate)), Key: string(EncodePEMToLegacyPerlRiakFormat(cert.PrivateKey)), CSR: ""}
+	newCertObj.Certificate = tc.DeliveryServiceSSLKeysCertificate{Crt: string(EncodePEMToLegacyPerlRiakFormat(cert.Certificate)), Key: string(EncodePEMToLegacyPerlRiakFormat(cert.PrivateKey)), CSR: string(EncodePEMToLegacyPerlRiakFormat([]byte(keyObj.Certificate.CSR)))}
 	if err := riaksvc.PutDeliveryServiceSSLKeysObj(newCertObj, tx, cfg.RiakAuthOptions, cfg.RiakPort); err != nil {
 		log.Errorf("Error posting acme certificate to riak: %s", err.Error())
 		api.CreateChangeLogRawTx(api.ApiChange, "DS: "+dsName+", ID: "+strconv.Itoa(*dsID)+", ACTION: FAILED to add SSL keys with "+acmeAccount.AcmeProvider, currentUser, logTx)
@@ -278,4 +284,38 @@ func getDSIdAndVersionFromName(db *sqlx.DB, xmlId string) (*int, *int64, error) 
 	}
 
 	return &dsID, &certVersion, nil
+}
+
+func ValidateCert(oldCert []byte, newCert []byte) error {
+	block, _ := pem.Decode(oldCert)
+	if block == nil {
+		return errors.New("Error decoding oldCert to parse expiration")
+	}
+
+	x509OldCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return errors.New("Error parsing oldCert to get expiration - " + err.Error())
+	}
+
+	block, _ = pem.Decode(newCert)
+	if block == nil {
+		return errors.New("Error decoding newCert to parse expiration")
+	}
+
+	x509NewCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return errors.New("Error parsing newCert to get expiration - " + err.Error())
+	}
+
+	// verify that the Common Name matches the old certificate
+	if x509NewCert.Subject.CommonName != x509OldCert.Subject.CommonName {
+		return errors.New(fmt.Sprintf("Common Names do not match. Previous: %s New: %s", x509OldCert.Subject.CommonName, x509NewCert.Subject.CommonName))
+	}
+
+	// verify that new expiration is after the old expiration
+	if !x509NewCert.NotAfter.After(x509OldCert.NotAfter) {
+		return errors.New(fmt.Sprintf("Expiration is not after the previous expiration. Expires: %v", x509NewCert.NotAfter))
+	}
+
+	return nil
 }
